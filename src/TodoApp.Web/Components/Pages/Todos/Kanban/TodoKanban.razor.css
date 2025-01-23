@@ -1,0 +1,11 @@
+.mud-background-gray.todo {
+    background-color: #ff0000;
+}
+
+.mud-background-gray.doing {
+    background-color: #00ffff;
+}
+
+.mud-background-gray.done {
+    background-color: #00ff21;
+}

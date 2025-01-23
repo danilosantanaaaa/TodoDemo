@@ -1,0 +1,30 @@
+<Project>
+	<PropertyGroup>
+		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageVersion Include="Mapster" Version="7.4.0"/>
+		<PackageVersion Include="Mapster.DependencyInjection" Version="1.0.1"/>
+		<PackageVersion Include="MediatR" Version="12.4.0"/>
+		<PackageVersion Include="MediatR.Contracts" Version="2.0.1"/>
+		<PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.7"/>
+		<PackageVersion Include="Microsoft.AspNetCore.Mvc" Version="2.2.0"/>
+		<PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.7"/>
+		<PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.7"/>
+		<PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.7">
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+		</PackageVersion>
+		<PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.7"/>
+		<PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0"/>
+		<PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.1"/>
+		<PackageVersion Include="MudBlazor" Version="7.4.0"/>
+		<PackageVersion Include="Newtonsoft.Json" Version="13.0.3"/>
+		<PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4"/>
+		<PackageVersion Include="coverlet.collector" Version="6.0.2"/>
+		<PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.10.0"/>
+		<PackageVersion Include="xunit" Version="2.9.0"/>
+		<PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2"/>
+		<PackageVersion Include="FluentAssertions" Version="6.12.0"/>
+	</ItemGroup>
+</Project>

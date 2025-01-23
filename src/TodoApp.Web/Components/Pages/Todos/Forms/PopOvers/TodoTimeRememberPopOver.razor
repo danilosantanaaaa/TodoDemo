@@ -1,0 +1,126 @@
+@if (Todo is not null)
+{
+    <MudItem>
+        <MudItem class="d-flex flex-row align-items-center justify-content-center gap-2">
+            <MudTooltip Text="Adicionar um horário para notificar quando irá começar a tarefa">
+                <MudFab Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AccessAlarm" Size="Size.Medium"
+                    ButtonType="ButtonType.Button" OnClick="ToggleOpenPopOver" />
+            </MudTooltip>
+
+            @if (HasTimeRemember())
+            {
+                <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" class="d-flex flex-column">
+                        <span>@GetTime(Todo.TimeRemember)</span>
+                    </MudText>
+                </MudHidden>
+            }
+        </MudItem>
+
+        <MudPopover Open="IsPickTimeRemember" OverflowBehavior="OverflowBehavior.FlipAlways" AnchorOrigin="Origin.TopLeft"
+            TransformOrigin="Origin.BottomLeft" Paper="true">
+            <MudStack class="p-3">
+                <MudItem>
+                    <MudTimePicker Label="Horário" AmPm="true" Time="time" TimeChanged="TimeEvent" />
+                </MudItem>
+                <MudItem class="d-flex justify-content-center gap-2">
+
+                    @if (!HasTimeRemember())
+                    {
+                        <MudTooltip Text="Remover Horário">
+                            <MudIconButton 
+                                Variant="Variant.Outlined" 
+                                Color="Color.Primary" 
+                                Icon="@Icons.Material.Filled.Delete"
+                                Size="Size.Large" OnClick="RemoveDate" />
+                        </MudTooltip>
+                    }
+
+                    <MudTooltip Text="Salvar">
+                        <MudIconButton Variant="Variant.Filled" Color="Color.Primary" Icon="@Icons.Material.Filled.Save"
+                            Size="Size.Large" OnClick="ToggleOpenPopOver" />
+                    </MudTooltip>
+                </MudItem>
+            </MudStack>
+        </MudPopover>
+    </MudItem>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public required TodoRequest Todo { get; set; }
+
+    [Parameter]
+    public EventCallback BeforeOpenPopOver { get; set; } = default;
+
+    [Parameter]
+    public EventCallback Callback { get; set; } = default!;
+
+    #region LIFE-CICLE
+
+    protected override Task OnParametersSetAsync()
+    {
+        LoadTime();
+        return Task.CompletedTask;
+    }
+
+    void LoadTime()
+    {
+        time = Todo.TimeRemember ?? null;
+    }
+    #endregion
+
+    #region POPOVER
+    TimeSpan? time;
+    bool IsPickTimeRemember = false;
+
+    public async Task ToggleOpenPopOver()
+    {
+        if (BeforeOpenPopOver.HasDelegate)
+        {
+            await BeforeOpenPopOver.InvokeAsync();
+        }
+
+        IsPickTimeRemember = !IsPickTimeRemember;
+
+        if (Callback.HasDelegate)
+        {
+            await Callback.InvokeAsync();
+        }
+    }
+
+    public void RemoveDate()
+    {
+        Todo.TimeRemember = null;
+        time = null;
+    }
+
+    public void TimeEvent(TimeSpan? timeSpan)
+    {
+        Todo.TimeRemember = timeSpan;
+        time = timeSpan;
+        if (!timeSpan.HasValue || timeSpan == TimeSpan.MinValue)
+        {
+            Todo.TimeRemember = null;
+        }
+
+        StateHasChanged();
+    }
+
+    public void Close()
+    {
+        IsPickTimeRemember = false;
+    }
+
+    #endregion
+
+    #region VALIDATIONS
+    public string GetTime(TimeSpan? timeSpan) => 
+        timeSpan.HasValue && timeSpan > TimeSpan.MinValue ?
+            timeSpan.Value.ToString(@"\ h\:mm") :
+            "";
+
+    private bool HasTimeRemember() => 
+        time is not null && time != TimeSpan.MinValue;
+    #endregion
+}

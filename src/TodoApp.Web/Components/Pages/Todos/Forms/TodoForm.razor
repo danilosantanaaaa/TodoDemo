@@ -1,0 +1,133 @@
+@inject ITodoService TodoService
+@inject ISnackbar Snackbar
+
+@if (!isLoaded())
+{
+    <p>Loading...</p>
+}
+else
+{
+    <MudPaper class="position-sticky bottom-0 w-100 " Elevation="6">
+        <MudContainer Class="p-3" MaxWidth="MaxWidth.ExtraExtraLarge">
+            <EditForm Model=" _todoRequest" OnValidSubmit="Submit" Context="editContext">
+                <DataAnnotationsValidator />
+                <MudItem class="d-flex gap-3 align-items-center">
+
+                    <MudTextField @bind-Value="_todoRequest!.Description" Label="Tarefa" Variant="Variant.Text"
+                        Underline="true" Error="false " AdornmentColor="Color.Success" Immediate="true" />
+
+                    @if (!string.IsNullOrEmpty(_todoRequest.Description))
+                    {
+                        <TodoDateRangePopOver Todo="_todoRequest" @ref="todoDateRangePopOver"
+                            BeforeOpenPopOver="CloseTimePicker" />
+
+                        <TodoTimeRememberPopOver Todo="_todoRequest" @ref="todoTimeRememberPopOver"
+                            BeforeOpenPopOver="CloseDateRangePicker" />
+
+                        <div class="d-flex justify-content-center align-content-center">
+                            <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" ButtonType="ButtonType.Submit" />
+                        </div>
+                    }
+                </MudItem>
+            </EditForm>
+        </MudContainer>
+    </MudPaper>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public required Guid MenuId { get; set; }
+
+    [Parameter]
+    public Guid TodoId { get; set; }
+
+    [Parameter]
+    public EventCallback Callback { get; set; } = default;
+
+    private TodoRequest? _todoRequest { get; set; } = null!;
+
+    TodoDateRangePopOver todoDateRangePopOver = null!;
+    TodoTimeRememberPopOver todoTimeRememberPopOver = null!;
+
+    #region LIFE-CYCLE
+    protected override async Task OnInitializedAsync()
+    {
+        await Request();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await Request();
+    }
+    #endregion
+
+    #region POPOVER
+    public void CloseTimePicker()
+    {
+        todoTimeRememberPopOver?.Close();
+    }
+
+    public void CloseDateRangePicker()
+    {
+        todoDateRangePopOver?.Close();
+    }
+    #endregion
+
+    #region HTTP Request
+    private async Task Request()
+    {
+        _todoRequest = TodoId != Guid.Empty ?
+            await TodoService.GetByIdAsync<TodoRequest>(MenuId, TodoId) :
+            NewTodoObjectRequest();
+        StateHasChanged();
+    }
+
+    private TodoRequest NewTodoObjectRequest()
+    {
+        return new()
+        {
+            MenuId = MenuId
+        };
+    }
+    #endregion
+
+    public async Task Submit()
+    {
+        try
+        {
+            var result = TodoId == Guid.Empty
+            ? await TodoService.Post<TodoRequest?>(_todoRequest)
+            : await TodoService.Put(TodoId, _todoRequest);
+
+            if (!result.IsSuccessStatusCode)
+            {
+                var problem = await result.Content.ReadFromJsonAsync<ProblemDetails>();
+
+                throw new Exception(problem?.Detail ?? Message.General.GENERIC_RESPONSE_ERROR);
+            }
+
+            Snackbar.Add(
+                TodoId.FormaterResultResponse(
+                    Message.General.SAVE, 
+                    Message.General.UPDATE, 
+                    "Tarefa"), 
+                Severity.Success);
+
+            if (Callback.HasDelegate)
+            {
+                await Callback.InvokeAsync();
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+
+        StateHasChanged();
+    }
+
+    #region VALIDATIONS
+    bool isLoaded() => _todoRequest is not null;
+    #endregion
+}

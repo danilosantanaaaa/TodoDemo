@@ -1,0 +1,63 @@
+@using TodoApp.Application.Common.Enums
+
+<MudCard>
+    <MudCardContent>
+        <MudText>
+            <MudIcon Icon="@Icons.Material.Filled.FilterAlt" Title="Favorite" />
+            Filtros:
+        </MudText>
+
+        <MudStack Row="true">
+            <MudTextField Value="QueryParameter.Description" ValueChanged="(string? str) => FilterDescription(str)" Label="Descrição" Variant="Variant.Text"></MudTextField>
+
+            <MudSelect T="TodoState" Label="Status" AnchorOrigin="Origin.BottomCenter" Value="State" ValueChanged="FilterState">
+                <MudSelectItem Value="@(TodoState.Pendent)">Pendente</MudSelectItem>
+                <MudSelectItem Value="@(TodoState.Finished)">Finalizado</MudSelectItem>
+                <MudSelectItem Value="@(TodoState.Non_Finished)">Não Finalizado</MudSelectItem>
+                <MudSelectItem Value="@(TodoState.Overdue)">Vencido</MudSelectItem>
+                <MudSelectItem Value="@(TodoState.Non_Overdue)">Não Vencido</MudSelectItem>
+                <MudSelectItem Value="@(TodoState.All)">Todas</MudSelectItem>
+            </MudSelect>
+        </MudStack>
+    </MudCardContent>
+</MudCard>
+
+
+@code {
+    [Parameter, EditorRequired]
+    public required TodoQueryParameter QueryParameter { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public EventCallback Submit { get; set; }
+
+    private TodoState State;
+
+    private void ResetFilter()
+    {
+        QueryParameter.PageNumber = 1;    
+    }
+
+    #region EVENTS
+    public async Task FilterDescription(string? description)
+    {
+        ResetFilter();
+        QueryParameter.Description = description;
+
+        await ApplyFilter();
+    }
+
+    public async Task FilterState(TodoState state)
+    {
+        ResetFilter();
+        State = state;
+        QueryParameter.State = state;
+
+        await ApplyFilter();
+    }
+
+    public async Task ApplyFilter()
+    {
+        await Submit.InvokeAsync();
+    }
+    #endregion
+}

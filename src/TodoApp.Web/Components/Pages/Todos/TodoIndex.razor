@@ -1,0 +1,107 @@
+@page "/{MenuId:guid}/todos"
+@using TodoApp.Application.Common.Models
+
+@inject IMenusService MenuService
+@inject ITodoService TodoService
+
+@if (!IsLoaded())
+{
+    <p>Loading...</p>
+}
+else
+{
+    <PageTitle>@_menuResponse!.Name :: Todos</PageTitle>
+
+    <MudStack class="d-flex flex-column align-content-end">
+        <MudContainer style="min-height: calc(100vh - var(--mud-appbar-height));">
+            <MenuHeader Name="@_menuResponse!.Name" Icon="@_menuResponse!.Icon" />
+
+            <TodoFilter QueryParameter="queryParameter" Submit="Request" />
+            
+            @if (pagination!.TotalCount == 0)
+            {
+                <MudText Typo="Typo.subtitle1">Nenhuma tarefa encontrada.</MudText>
+            }
+            else
+            {
+
+                <MudStack Class="pt-5">
+                    @foreach (var todo in pagination!.Items)
+                    {
+                        <TodoCard 
+                            TodoResponse="todo" 
+                            QueryParameter="queryParameter" 
+                            EditCallback="StartEditTodo" 
+                            StateChangedEvent="Request" />
+                    }
+
+                    @if (pagination.HasNextPage || pagination.HasPreviousPage)
+                    {
+                        <div class="d-flex flex-column align-center overflow-auto">
+                            <MudPagination Color="Color.Primary" Count="@pagination.TotalPages" Selected="queryParameter.PageNumber" SelectedChanged="MovePage" />
+                        </div>
+                    }
+                </MudStack>
+            }
+        </MudContainer>
+
+        <TodoForm MenuId="MenuId" TodoId="_todoIdSelect" Callback="Request" />
+    </MudStack>
+}
+
+@code {
+
+    [Parameter]
+    public Guid MenuId { get; set; }
+
+    [SupplyParameterFromQuery] 
+    private int? pageNumber { get; set; }
+
+    private TodoQueryParameter queryParameter { get; set; } = new();
+
+    private MenuResponse? _menuResponse = default!;
+    private PaginatedList<TodoResponse>? pagination { get; set; }
+    private Guid _todoIdSelect = Guid.Empty;
+
+    #region LIFE-CYCLE
+    protected override async Task OnInitializedAsync()
+    {
+        queryParameter.PageNumber = pageNumber ?? 1;
+        await Request();
+    }
+    #endregion
+
+    #region EVENTS
+    void StartEditTodo(Guid todoId)
+    {
+        Console.WriteLine("Started Edit Todo...");
+        _todoIdSelect = todoId;
+        StateHasChanged();
+    }
+    #endregion
+
+    #region HTTP Request
+    public async Task Request()
+    {
+        _menuResponse = await MenuService.GetByIdAsync<MenuResponse>(MenuId);
+        pagination = await TodoService.GetAll<TodoResponse>(MenuId, queryParameter);
+        _todoIdSelect = Guid.Empty;
+
+        StateHasChanged();
+    }
+
+    public async Task MovePage(int cursor)
+    {
+        queryParameter.PageNumber = cursor;
+        await Request();
+    }
+    #endregion
+
+    #region VALIDATIONS
+    bool IsLoaded() =>
+        _menuResponse is not null && pagination is not null;
+
+    string GetTitleEdit(TodoResponse todo) =>
+        $"Editar \"{todo.Description}\".";
+    #endregion
+}

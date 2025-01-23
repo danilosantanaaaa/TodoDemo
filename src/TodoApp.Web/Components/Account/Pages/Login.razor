@@ -1,0 +1,101 @@
+@page "/Account/Login"
+
+@inject SignInManager<ApplicationIdentityUser> SignInManager
+@inject ILogger<ApplicationIdentityUser> Logger
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Login</PageTitle>
+
+<h2>Entrar</h2>
+
+@if(!string.IsNullOrEmpty(errorMessage)){
+    <p class="text-danger">@errorMessage</p>
+}
+
+<EditForm Model="Input" OnValidSubmit="LoginUser" method="post" FormName="login">
+    <DataAnnotationsValidator />
+
+    <!-- Email input -->
+    <div data-mdb-input-init class="form-outline mb-4">
+        <InputText type="email" id="email" class="form-control" @bind-Value="Input.Email"/>
+        <label class="form-label" for="email">E-mail</label>
+        <ValidationMessage For="() => Input.Email" />
+    </div>
+
+    <!-- Password input -->
+    <div data-mdb-input-init class="form-outline mb-4">
+        <InputText type="password" id="password" class="form-control" @bind-Value="Input.Password"/>
+        <label class="form-label" for="password">Senha</label>
+        <ValidationMessage For="() => Input.Password" />
+    </div>
+
+  <!-- 2 column grid layout for inline styling -->
+    <div data-mdb-input-init class="form-outline mb-4">
+        <InputCheckbox @bind-Value="Input.RememberMe" id="rememberMe"  class="form-check-input" />
+        <label class="form-check-label" for="rememberMe">Lembrar-me</label>
+    </div>
+
+  <!-- Submit button -->
+  <button  type="submit" data-mdb-button-init data-mdb-ripple-init class="btn btn-primary btn-block mb-4">Entrar</button>
+
+  <!-- Register buttons -->
+  <div>
+    <p>Não tem Login? <a href="@($"./Account/Register?ReturnUrl={ReturnUrl}")">Criar uma.</a></p>
+  </div>
+</EditForm>
+
+@code {
+    private string errorMessage = string.Empty;
+
+    [CascadingParameter]
+    public HttpContext HttpContext {get; set;} = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl {get; set;} = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpContext is not null && HttpMethods.IsGet(HttpContext.Request.Method ?? ""))
+        {
+            // Clear the existing external cookie to ensure a clean login process
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        }
+    }
+
+    public async Task LoginUser() 
+    {
+        var result = await SignInManager.PasswordSignInAsync(
+            Input.Email,
+            Input.Password,
+            Input.RememberMe,
+            false
+        );
+
+        if(result.Succeeded){
+            Logger.LogInformation("User logged in.");
+            RedirectManager.RedirectTo(ReturnUrl);
+        } else {
+            errorMessage = "Email/Senha inválida.";
+        }
+    }
+
+    #region MODEL
+    private sealed class InputModel 
+    {   
+        [Required]
+        [EmailAddress(ErrorMessage = "Formato de e-mail inválido.")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Senha Obrigatória")]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [Display(Name = "Remember me?")]
+        public bool RememberMe { get; set; }
+    }
+    #endregion
+}

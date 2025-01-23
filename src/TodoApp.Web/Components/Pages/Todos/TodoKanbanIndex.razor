@@ -1,0 +1,77 @@
+@page "/{menuId:guid}/todos/{todoId:guid}/kanban"
+
+@inject ITodoService TodoService
+@inject NavigationManager NavigationManager
+@inject HttpClient Client
+@inject IDateTimeProvider DateTimeProvider
+
+<PageTitle>Todo - Kanban</PageTitle>
+
+@if (!IsLoaded())
+{
+    <p>Loading...</p>
+}
+else
+{
+    <MudContainer>
+        <MudText Typo="Typo.h4" Class="pb-1">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" aria-label="delete" OnClick="BackwardTo"></MudIconButton>
+            <span>@Todo?.Description</span>
+        </MudText>
+
+        <MudAlert Severity="Severity.Warning" class="mb-2">
+            <strong>Atenção:</strong> ao atualizar o item abaixo, caso houver dois ou mais usuários nessa mesma página e tentar atualizar o mesmo item 
+            simultaneamente pode sobrescrever e somente o último item modificado que será salvo.
+        </MudAlert>
+        
+        <MudStack Row="true">
+            <MudItem>
+                <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Inherit" />
+                @Todo!.DateStart.FormatDate(Todo!.DateEnd, DateTimeProvider)
+            </MudItem>
+
+            @if (Todo!.TimeRemember != TimeOnly.MinValue)
+            {
+                <MudItem>
+                    <MudIcon Icon="@Icons.Material.Filled.WatchLater" Color="Color.Inherit" />
+                    @Todo!.TimeRemember
+                </MudItem>
+            }
+        </MudStack>
+
+        <MudDivider />
+        <TodoKanban Todo="Todo"/>
+
+        <MudDivider />
+        <Auditable CreatedOn="Todo!.CreatedOn" UpdatedOn="Todo.UpdatedOn"/>
+    </MudContainer>
+}
+
+@code {
+    [Parameter]
+    public Guid MenuId { get; set; }
+
+    [Parameter]
+    public Guid TodoId { get; set; }
+
+    [SupplyParameterFromQuery]
+    private int? pageNumber { get; set; }
+
+    private TodoResponse? Todo { get; set; }
+
+    #region LIFE-CIRCLE
+    protected override async Task OnInitializedAsync()
+    {
+        Todo = await TodoService.GetByIdAsync<TodoResponse>(MenuId, TodoId);
+    }
+    #endregion
+
+    #region EVENT
+    private void BackwardTo() =>
+        NavigationManager.NavigateTo($"./{MenuId}/todos?pageNumber={(pageNumber ?? 1)}");
+    #endregion
+
+    #region VALIDATIONS
+    private bool IsLoaded() => Todo is not null;
+    #endregion
+}

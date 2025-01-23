@@ -1,0 +1,135 @@
+@page "/"
+@attribute [Authorize]
+@using System.Globalization
+@using TodoApp.Application.Dtos.Dashboards
+
+@inject IDashboardService DashboardService
+
+@inject IDateTimeProvider DateTimeProvider
+
+<PageTitle>Dashboard</PageTitle>
+
+@if(!IsLoaded())
+{
+    <p>Loading...</p>
+}
+else
+{
+    <MudContainer>
+        <MudText Typo="Typo.h4">Dashboard</MudText>
+        <MudDivider />
+
+        <MudStack Spacing="3">
+            <MudCard Elevation="2">
+                <MudCardHeader>
+                    <MudText Typo="Typo.h5">Tarefas finalizada em: @DateTimeProvider.UtcNow.ToLocalTime().Year</MudText>
+                </MudCardHeader>
+                <MudCardContent style="overflow-x: auto; overflow-y: hidden;">
+                    <MudGrid Justify="Justify.FlexEnd">
+                        <MudItem xs="12">
+                            <MudChart 
+                                ChartType="ChartType.Line" 
+                                ChartSeries="@_series" 
+                                @bind-SelectedIndex="Index" 
+                                XAxisLabels="@_xAxisLabels"
+                                Width="100%" 
+                                Height="700px" 
+                                ChartOptions="@Options"
+                                Style="min-width: 600px;"/>
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+                <MudCardActions class="justify-content-end">
+                        <MudText>(<strong>Total de Tarefa Finalizada:</strong> @GetSumCountTodoFinishedMonthly()</MudText>
+                </MudCardActions>
+            </MudCard>
+
+            <MudCard Elevation="3" Class="mb-2">
+                <MudCardHeader>
+                    <MudText Typo="Typo.h5">Tarefas pendente por Menu em: @DateTimeProvider.UtcNow.ToLocalTime().Year</MudText>
+                </MudCardHeader>
+                <MudCardContent style="overflow-x: auto; overflow-y: hidden;">
+                    @if (!_dashboard.MenuGroup.Any())
+                    {
+                        <MudText Typo="Typo.body2">Nenhuma informações disponível no momento.</MudText>
+                    }
+                    else
+                    {
+                        <MudGrid Justify="Justify.FlexEnd">
+                            <MudItem xs="12">
+                                <MudChart 
+                                    ChartType="ChartType.Pie" 
+                                    InputData="@GetPieInformation().Data" 
+                                    @bind-SelectedIndex="Index"
+                                    InputLabels="@GetPieInformation().Label"
+                                    Width="100%" 
+                                    Height="700px" />
+                            </MudItem>
+                        </MudGrid>
+                    }
+                </MudCardContent>
+                <MudCardActions class="justify-content-end">
+                    <MudText> (<strong>Total de Tarefas Pendentes:</strong> @GetSumCountMenuPendent()</MudText>
+                </MudCardActions>
+            </MudCard>
+        </MudStack>
+    </MudContainer>
+}
+
+@code {
+    private int Index = -1; //default value cannot be 0 -> first selectedindex is 0.
+    public ChartOptions Options = new ChartOptions()
+    {
+        ShowLegend = true
+    };
+    private DashboardResponse _dashboard = null!;
+
+    // Line
+    private List<ChartSeries> _series = new List<ChartSeries>();
+    private string[] _xAxisLabels = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboard();
+        Options.YAxisTicks = _dashboard.MonthlyGroup.Sum(x => x.Count) <= 10 ? 2 : 10;
+    }
+
+    private async Task LoadDashboard()
+    {
+        _dashboard = await DashboardService.GetDatas();
+        List<double> finished = new();
+        List<string> monthName = new();
+
+        foreach(var mothly in _dashboard.MonthlyGroup)
+        {
+            finished.Add(mothly.Count);
+
+            monthName.Add(DateTimeFormatInfo.CurrentInfo.GetAbbreviatedMonthName(mothly.Month));
+        }
+
+        _series.Add(new ChartSeries()
+        {
+            Name = "Finalizado",
+            Data = finished.ToArray()
+        });
+
+        _xAxisLabels = monthName.ToArray();
+    }
+
+    #region VALIDATIONS
+    private bool IsLoaded() =>
+        _dashboard is not null;
+
+    private int GetSumCountTodoFinishedMonthly() =>
+        _dashboard.MonthlyGroup.Sum(x => x.Count);
+
+    private int GetSumCountMenuPendent() =>
+        _dashboard.MenuGroup.Sum(x => x.Count);
+
+    private (string[] Label, double[] Data) GetPieInformation() =>
+        (
+            _dashboard.MenuGroup.Select(x => $"{x.Name} ({x.Count * 100 / GetSumCountMenuPendent()}%)").ToArray(), 
+            _dashboard.MenuGroup.Select(x => (double)x.Count).ToArray()
+        );
+    #endregion
+}

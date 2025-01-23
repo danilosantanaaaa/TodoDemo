@@ -1,0 +1,17 @@
+<MudText Typo="Typo.h4" Class="pb-1">
+    <MudIcon Icon="@Icon.GetIcon()" Title="Favorite" />
+    <span>@GetName()</span>
+</MudText>
+
+<MudDivider/>
+
+@code {
+    [Parameter, EditorRequired]
+    public required string Icon {get; set;}
+
+    [Parameter, EditorRequired]
+    public required string Name {get; set;}
+
+    private string GetName() =>
+        string.IsNullOrEmpty(Name) ? "Sem Título" : Name;
+}

@@ -1,0 +1,129 @@
+@page "/menus/addition"
+@page "/menus/edittion/{Id:guid}"
+
+@inject IMenusService MenusService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject ILogger<MenuUpsert> logger
+
+<PageTitle>Criar Menu</PageTitle>
+@if (_menuResponse is null && _menuRequest is null)
+{
+    <MudProgressCircular Color="Color.Default" Indeterminate="true" />
+}
+else
+{
+    <MudContainer>
+       <MenuHeader Name="@_menuRequest!.Name" Icon="@_menuRequest.Icon" />
+
+        <EditForm Model="@_menuRequest" OnValidSubmit="OnValidSubmit">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12" sm="12" xxl="12">
+                    <MudCard Elevation="1">
+                        <MudCardContent>
+                            <MudTextField Label="Name" @bind-Value="_menuRequest.Name"
+                                For="@(() => _menuRequest.Name)" Immediate="true" />
+                        </MudCardContent>
+
+                        <MudCardContent>
+                            <MudStack Row Class="flex-wrap">
+                                <MudToggleGroup T="string" SelectionMode="SelectionMode.SingleSelection" @bind-Value="_menuRequest.Icon"
+                                                Color="Color.Primary" CheckMark FixedContent="false" Size="Size.Small" Outlined="false"
+                                    Delimiters="false">
+                                    @foreach (var icon in MenuExtensions.IconMap)
+                                    {
+                                        var iconAux = icon;
+                                        <MudToggleItem Value="@iconAux.Key" SelectedIcon="@iconAux.Value.Check"
+                                            UnselectedIcon="@iconAux.Value.UnCheck" Text="" />
+                                    }
+
+                                </MudToggleGroup>
+                            </MudStack>
+                        </MudCardContent>
+
+                        <MudCardActions>
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"
+                                StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary" Class="ml-auto">Salvar
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+
+        @if (!Id.IsNew())
+        {
+           <Auditable 
+               CreatedOn="_menuResponse!.CreatedOn" 
+               UpdatedOn="_menuResponse.UpdatedOn" />
+        }
+    </MudContainer>
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    private MenuRequest? _menuRequest { get; set; }
+    private MenuResponse? _menuResponse { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMenu();
+    }
+
+    private async Task LoadMenu() {
+        _menuResponse = Id.IsNew() ? new() :
+            await MenusService.GetByIdAsync<MenuResponse>(Id);
+
+        _menuRequest = new MenuRequest
+            {
+                Name = _menuResponse!.Name,
+                Icon = _menuResponse.Icon
+            };
+    }
+
+    void SelectIcon(string icon)
+    {
+        _menuRequest!.Icon = icon;
+        StateHasChanged();
+    }
+
+    async Task OnValidSubmit()
+    {
+        try
+        {
+            var result = Id.IsNew() ?
+                await MenusService.Post<MenuRequest>(_menuRequest!) : await
+                MenusService.Put<MenuRequest>(Id, _menuRequest!);
+
+            if (!result.IsSuccessStatusCode) {
+                var problemDetails = await result.Content.ReadFromJsonAsync<ProblemDetails>();
+                throw new Exception(problemDetails?.Detail ?? Message.General.GENERIC_RESPONSE_ERROR);
+            }
+
+            Snackbar.Add(
+                Id.FormaterResultResponse(
+                    Message.General.SAVE, 
+                    Message.General.UPDATE, 
+                    "Menu"), 
+                Severity.Success);
+
+            Id = Id.IsNew() ? await result.Content.ReadFromJsonAsync<Guid>() : Id;
+            await LoadMenu();
+
+            NavigationManager.NavigateTo($"/menus/edittion/{Id}");
+            await MainLayout.Update();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+            logger.LogError(ex.Message);
+        }
+    }
+}

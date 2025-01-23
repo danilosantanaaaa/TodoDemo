@@ -1,0 +1,16 @@
+@host = http://localhost:5288
+
+POST {{host}}/api/menus
+Content-Type: application/json
+
+{
+    "Name": "Meus Lembretes 2",
+    "Icon": "Alarm"
+}
+
+### Retorna todos os menus
+GET {{host}}/api/menus
+
+### Retornar um menu dados o ID
+
+GET {{host}}/api/menus/3a9815f0-018a-41de-8be9-f6dc99e9c632

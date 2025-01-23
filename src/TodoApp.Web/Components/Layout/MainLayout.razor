@@ -1,0 +1,58 @@
+
+@inherits LayoutComponentBase
+
+<CascadingValue Value="this">
+    <MudThemeProvider />
+    <MudPopoverProvider />
+    <MudSnackbarProvider />
+
+    <MudDialogProvider 
+        FullWidth="true" 
+        MaxWidth="MaxWidth.ExtraSmall" 
+        CloseButton="true" 
+        BackdropClick="true"
+        NoHeader="false" 
+        Position="DialogPosition.Center" 
+        CloseOnEscapeKey="true" />
+
+    <MudLayout>
+        <MudAppBar Elevation="2">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+                OnClick="@((e) => DrawerToggle())" />
+            <MudText Typo="Typo.h5" Class="ml-3">Todo App</MudText>
+
+            <MudSpacer />
+            <UserBarItem />
+
+        </MudAppBar>
+
+        <MudPaper>
+            <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="1" Color="Color.Surface">
+                <AuthorizeView>
+                    <NavMenu @ref="NavMenu" />
+                </AuthorizeView>
+            </MudDrawer>
+        </MudPaper>
+
+        <MudMainContent class="min-vh-100">
+            <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" class="p-0">
+                @Body
+            </MudContainer>
+        </MudMainContent>
+    </MudLayout>
+</CascadingValue>
+@code {
+    bool _drawerOpen = true;
+
+    NavMenu NavMenu { get; set; } = default!;
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    public async Task Update()
+    {
+        await NavMenu.UpdateUI();
+    }
+}

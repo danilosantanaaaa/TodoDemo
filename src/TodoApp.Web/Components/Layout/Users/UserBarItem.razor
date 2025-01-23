@@ -1,0 +1,42 @@
+@using Microsoft.AspNetCore.Identity
+
+@inject IdentityUserAccessor IdentityUserAccessor
+@inject NavigationManager NavigationManager
+@inject IHttpContextAccessor HttpContextAccessor
+
+@if (_identityUser is not null)
+{   
+    <MudTooltip Text="@_identityUser.UserName" Arrow="true" ShowOnClick="true">
+        <MudAvatar Color="Color.Secondary">@_identityUser.UserName!.ToUpper().First()</MudAvatar>
+    </MudTooltip>
+
+    <MudMenu Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" TransformOrigin="Origin.BottomLeft">
+        <MudMenuItem IconSize="Size.Medium" Icon="@Icons.Material.Filled.AccountCircle" OnClick="Profile">
+            Minha Conta
+        </MudMenuItem>
+        <MudMenuItem IconSize="Size.Medium" Icon="@Icons.Material.Filled.Login" OnClick="Logout">Sair</MudMenuItem>
+    </MudMenu>
+}
+
+@code {
+    IdentityUser? _identityUser = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpContextAccessor.HttpContext is not null)
+        {
+            _identityUser = await IdentityUserAccessor.GetRequiredUserAsync(HttpContextAccessor.HttpContext);
+        }
+    }
+
+    void Logout()
+    {
+        NavigationManager.NavigateTo("./Account/Logout", true);
+    }
+
+    void Profile()
+    {
+        NavigationManager.NavigateTo("./Account/Profile");
+    }
+
+}

@@ -1,0 +1,30 @@
+﻿@page "/Error/404"
+@using System.Diagnostics
+@attribute [Authorize]
+
+<PageTitle>Error</PageTitle>
+
+<MudText Typo="Typo.h3">Error 404 - Not Found.</MudText>
+<MudText Typo="Typo.h4">Arquivo/Página solicitado não foi encontrado.</MudText>
+
+
+@if (ShowRequestId)
+{
+    <MudText Typo="Typo.body1">
+        <strong>Request ID:</strong> <code>@RequestId</code>
+    </MudText>
+}
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+
+    private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    protected override void OnInitialized()
+    {
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+    }
+}

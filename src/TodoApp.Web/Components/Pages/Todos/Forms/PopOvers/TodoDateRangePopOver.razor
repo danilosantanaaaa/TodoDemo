@@ -1,0 +1,150 @@
+@inject IDateTimeProvider DateTimeProvider
+
+@if(Todo is not null) {
+    <MudItem class="gap-19 d-flex flex-row align-items-centers justify-content-center">
+        <MudItem class="d-flex justify-content-center align-items-center gap-2">
+            <MudTooltip Text="Adicionar Data">
+                <MudFab Color="Color.Secondary" StartIcon="@Icons.Material.Filled.CalendarMonth" Size="Size.Medium"
+                    ButtonType="ButtonType.Button" OnClick="ToggleOpenPopOver" />
+            </MudTooltip>
+
+            @if (IsDateStartOrEndFilled())
+            {
+                <MudHidden Breakpoint="Breakpoint.SmAndUp" Invert="true">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" class="d-flex flex-column align-items-center">
+                        <span>@Todo.DateStart.FormatDate(DateTimeProvider)</span>
+                        @if(IsDateFilled(Todo.DateEnd)) {
+                            <span>até</span>
+                            <span>@Todo.DateEnd.FormatDate(DateTimeProvider)</span>
+                        }
+                    </MudText>
+                </MudHidden>
+            }
+        </MudItem>
+
+        <MudPopover Open="IsOpenPopover" OverflowBehavior="OverflowBehavior.FlipAlways"
+            AnchorOrigin="Origin.TopLeft" TransformOrigin="Origin.BottomLeft" Paper="true" class="pa-4" Fixed="true">
+            <MudStack>
+                <MudItem outlined="true" Class="px-4 py-4 d-flex flex-column gap-3">
+                    @if(!IsPickDateRange) {
+                        <MudDatePicker 
+                            Label="@(IsPickDateRange ? "Data Inicial": "Data de Lembrança")" 
+                            @bind-Date="Todo.DateStart" 
+                            MinDate="MinDateStart()" />
+                    } else {
+                         <MudDateRangePicker 
+                            PickerVariant="PickerVariant.Dialog" 
+                            DateRange="dateRangePick" 
+                            DateRangeChanged="DateRangeEvent"
+                            MinDate="MinDateStart()"
+                            Margin="Margin.Dense" />
+                    }
+                    
+                </MudItem>
+
+                <MudItem class="p-2 gap-2 d-flex justify-content-center">
+                    <MudTooltip Text="@($"{(IsPickDateRange ? "Remover" : "Adicionar")} Data Final")">
+                        <MudIconButton Variant="Variant.Outlined"
+                            Icon="@(IsPickDateRange ? Icons.Material.Filled.Delete : Icons.Material.Filled.Add)"
+                            Color="Color.Secondary" Size="Size.Large" OnClick="ToogleDateType" />
+                    </MudTooltip>
+
+                    <MudTooltip Text="Salvar">
+                        <MudIconButton Variant="Variant.Filled" Color="Color.Primary"
+                            Icon="@Icons.Material.Filled.Save" Size="Size.Large"
+                            OnClick="ToggleOpenPopOver" />
+                    </MudTooltip>
+                </MudItem>
+            </MudStack>
+        </MudPopover>
+    </MudItem>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public required TodoRequest Todo { get; set; }
+
+    [Parameter]
+    public EventCallback BeforeOpenPopOver { get; set; } = default;
+
+    DateRange dateRangePick = new DateRange();
+
+    #region LIFE-CICLY
+    protected override void OnParametersSet() {
+        if(HasPickDateRange()) {
+            dateRangePick.Start = Todo.DateStart ?? DateTimeProvider.UtcNow;
+            dateRangePick.End = Todo.DateEnd;
+            IsPickDateRange = true;
+        } else {
+            Todo.DateStart = Todo.DateStart ?? DateTimeProvider.UtcNow;
+            IsPickDateRange = false;
+        }
+
+    }
+    #endregion
+
+    #region POPOVER
+    bool IsOpenPopover = false;
+    bool IsPickDateRange = false;
+
+    /// <summary>
+    /// Fica alternando entre os tipos de datas.
+    /// Os tipos de data são: data sem intervalo e data com intervalo.
+    /// </summary>
+    void ToogleDateType()
+    {
+        IsPickDateRange = !IsPickDateRange;
+
+        if (!IsPickDateRange)
+        {
+            Todo!.DateEnd = null;
+        }
+        StateHasChanged();
+    }
+
+    public void ToggleOpenPopOver()
+    {
+        if(BeforeOpenPopOver.HasDelegate) {
+            BeforeOpenPopOver.InvokeAsync().GetAwaiter();
+        }
+
+        IsOpenPopover = !IsOpenPopover;
+    }
+
+    public void Close() => 
+        IsOpenPopover = false;
+    #endregion
+
+    #region EVENT
+    public void DateRangeEvent(DateRange dateRange) {
+        if(dateRange.Start == dateRange.End && dateRange.End.HasValue) {
+            dateRange.End = dateRange.Start?.AddDays(1);
+        }
+
+        dateRangePick = dateRange;
+        Todo.DateStart = dateRange.Start;
+        Todo.DateEnd = dateRange.End;
+        StateHasChanged();
+    }
+    #endregion
+
+    #region VALIDATIONS
+    private string GetDate(DateTime? dateTime){
+        return dateTime.FormatDate(DateTimeProvider);
+    }
+
+    private bool IsDateFilled(DateTime? dateTime) =>
+        dateTime.HasValue && dateTime.Value != DateTime.MinValue;
+
+    private DateTime MinDateStart() =>
+       DateTimeProvider.UtcNow.AddDays(-1);
+
+    private bool HasPickDateRange() =>
+        Todo.DateEnd is not null && Todo.DateEnd != DateTime.MinValue && IsPickDateRange ||
+        Todo.DateEnd.HasValue && Todo.DateEnd.Value != DateTime.MinValue;
+
+    private bool IsDateStartOrEndFilled() =>
+        Todo.DateStart != DateTime.MinValue && 
+        (true || Todo.DateEnd != DateTime.MinValue);
+    #endregion
+}

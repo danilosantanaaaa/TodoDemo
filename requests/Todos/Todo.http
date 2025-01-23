@@ -1,0 +1,35 @@
+@host = http://localhost:5288
+
+### GET - Rota inválida
+GET {{host}}/api/todos
+
+## POST
+POST {{host}}/api/todos
+Content-Type: application/json
+
+{
+    "Description": "Meus Lembretes 3",
+    "UserId": "3a9815f0-018a-41de-8be9-f6dc99e9c632",
+    "MenuId": "3a9815f0-018a-41de-8be9-f6dc99e9c632",
+    "DateStart": "0001-01-01T00:00:00",
+    "DateEnd": "0001-01-01T00:00:00",
+    "TodoItemRequests": []
+}
+
+
+### PUT
+
+PUT {{host}}/api/todos/
+
+### POST KANABAN
+POST {{host}}/api/todos/527ca910-6c4b-46b2-9883-c486c01b42f0/kanban
+Content-Type: application/json
+
+{
+  "Name": "Test",
+  "Type": "Todo"
+}
+
+### 
+http://localhost:5288/api/todos/all/a70ec313-92fa-4965-b1a3-4760b015a03e?pageSize=10&pageNumber=1
+Cookie: {{cookie}}

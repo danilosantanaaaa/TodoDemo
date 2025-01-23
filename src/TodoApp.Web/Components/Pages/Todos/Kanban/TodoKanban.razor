@@ -1,0 +1,185 @@
+@inject ILogger<TodoKanban> Logger
+@inject ISnackbar Snackbar
+@inject ITodoService TodoService
+
+<div style="width: 100%; overflow: hidden;">
+    <div class="overflow-auto">
+        <MudDropContainer T="TodoKanbanRequest" @ref="_dropContainer" Items="@_tasks"
+            ItemsSelector="SelectItem" ItemDropped="UpdateTask" Class="d-flex flex-row"
+            Style="width: 700px;">
+            <ChildContent>
+                @foreach (var item in _sections)
+                {
+                    <MudPaper Elevation="0" Width="224px" MinHeight="400px"
+                              Class="@($"pa-4 ma-4 d-flex flex-column mud-background-gray rounded-lg {item.KanbanType.ToString().ToLower()}")">
+                        <MudToolBar Gutters="true">
+                            <MudText Typo="Typo.subtitle1"><b>@item.Name</b></MudText>
+                        </MudToolBar>
+                        <MudDropZone T="TodoKanbanRequest" Identifier="@item.KanbanType.ToString()" Class="mud-height-full" />
+                        @if (item.NewTaskOpen)
+                        {
+                            <MudPaper Elevation="25" Class="pa-2 rounded-lg">
+                                <MudTextField @bind-Value="item.NewTaskName" Placeholder="Novo Item" Underline="true"
+                                    Margin="Margin.Dense" Class="mx-2 mt-n2"></MudTextField>
+                                <MudButton OnClick="@(() => AddTask(item))" Size="Size.Small" Color="Color.Primary"
+                                    FullWidth="true">Adicionar Item</MudButton>
+                            </MudPaper>
+                        }
+                        else
+                        {
+                            <MudButton OnClick="@(() => item.NewTaskOpen = !item.NewTaskOpen)"
+                                StartIcon="@Icons.Material.Filled.Add" FullWidth="true" Class="rounded-lg py-2">Adicionar
+                            </MudButton>
+                        }
+                    </MudPaper>
+                }
+            </ChildContent>
+            <ItemRenderer>
+                <MudPaper Elevation="25" Class="pa-4 rounded-lg my-3">
+                    <MudStack Row="true" Spacing="2" Justify="Justify.SpaceBetween">
+                        <MudText>@context.Name</MudText>
+                        <div class="d-flex align-items-center">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="delete" Size="Size.Small" OnClick="() => DeleteTask(context)"></MudIconButton>
+                        </div>
+                    </MudStack>
+                </MudPaper>
+            </ItemRenderer>
+        </MudDropContainer>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public required TodoResponse Todo { get; set; } = new();
+
+    private MudDropContainer<TodoKanbanRequest> _dropContainer = default!;
+
+    private readonly List<TodoKanbanRequest> _tasks = new();
+
+    #region LIFE_CIRCLE
+    protected override void OnInitialized()
+    {
+        _tasks.AddRange(Todo.KanbansResponse.Select(k => new TodoKanbanRequest
+        {
+            Id = k.Id,
+            Name = k.Name,
+            Type = k.Type
+        }));
+    }
+    #endregion
+
+    #region REQUEST
+    private async Task AddTask(KanBanSections section)
+    {
+        try
+        {
+            section.NewTaskOpen = false;
+            if(string.IsNullOrEmpty(section.NewTaskName)) return;
+
+            var kanbanRequest = new TodoKanbanRequest(section.NewTaskName, section.KanbanType);
+            var result = await TodoService.AddTodoKanban(Todo.Id, kanbanRequest);
+
+            if(!result.IsSuccessStatusCode)
+            {
+                var problemDetails = await result.Content.ReadFromJsonAsync<ProblemDetails>();
+                throw new Exception(problemDetails?.Detail ?? Message.General.GENERIC_RESPONSE_ERROR);
+            }
+
+            kanbanRequest.Id = await result.Content.ReadFromJsonAsync<Guid>();
+
+            _tasks.Add(kanbanRequest);
+            section.NewTaskName = string.Empty;
+            _dropContainer.Refresh();
+
+            Snackbar.Add(Message.General.SAVE.FormaterString("Item"), Severity.Success);
+
+        } 
+        catch(Exception e)
+        {
+            Logger.LogError(e.Message, e);
+            Snackbar.Add(e.Message, Severity.Error);
+        }
+    }
+
+    private async Task UpdateTask(MudItemDropInfo<TodoKanbanRequest> info)
+    {
+        try
+        {
+            var todoKanbanRequest = info.Item!;
+            KanbanType kanbanTypeNew = Enum.Parse<KanbanType>(info.DropzoneIdentifier);
+            KanbanType kanbaTypeOld = todoKanbanRequest.Type;
+
+            todoKanbanRequest.Type = kanbanTypeNew;
+            var result = await TodoService.UpdateTodoKanban(Todo.Id, info.Item!.Id, todoKanbanRequest);
+
+            if (!result.IsSuccessStatusCode)
+            {
+                var problemDetails = await result.Content.ReadFromJsonAsync<ProblemDetails>();
+                todoKanbanRequest.Type = kanbaTypeOld;
+                throw new Exception(problemDetails?.Detail ?? Message.General.GENERIC_RESPONSE_ERROR);
+            }
+
+            Snackbar.Add(Message.General.UPDATE.FormaterString("Item"), Severity.Success);
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e.Message, e);
+            Snackbar.Add(e.Message, Severity.Error);
+        }
+    }
+
+    private async Task DeleteTask(TodoKanbanRequest kanban)
+    {
+        try
+        {
+            var result = await TodoService.DeleteTodoKanban(Todo.Id, kanban.Id);
+
+            if(!result.IsSuccessStatusCode)
+            {
+                var problemDetails = await result.Content.ReadFromJsonAsync<ProblemDetails>();
+                throw new Exception(problemDetails?.Detail ?? Message.General.GENERIC_RESPONSE_ERROR);
+            }
+
+            _tasks.Remove(kanban);
+
+            Snackbar.Add(Message.General.DELETE.FormaterString("Item"), Severity.Success);
+
+            _dropContainer.Refresh();
+        } catch(Exception e)
+        {
+            Logger.LogError(e.Message, e);
+            Snackbar.Add(e.Message, Severity.Error);
+        }
+    }
+    #endregion
+
+    #region VALIDATIONS
+    private bool SelectItem(TodoKanbanRequest kanban, string column) =>
+        kanban.Type.ToString() == column;
+    #endregion
+
+    #region MODELS
+    /* Setup for board */
+    private readonly List<KanBanSections> _sections = new()
+    {
+        new KanBanSections("Para Fazer", KanbanType.Todo, false),
+        new KanBanSections("Fazendo", KanbanType.Doing, false),
+        new KanBanSections("Finalizado", KanbanType.Done, false),
+    };
+
+    public class KanBanSections
+    {
+        public string Name { get; set; }
+        public KanbanType KanbanType { get; set; }
+        public bool NewTaskOpen { get; set; }
+        public string NewTaskName { get; set; } = string.Empty;
+
+        public KanBanSections(string name, KanbanType kanbanType, bool newTaskOpen)
+        {
+            Name = name;
+            KanbanType = kanbanType;
+            NewTaskOpen = newTaskOpen;
+        }
+    }
+    #endregion
+}

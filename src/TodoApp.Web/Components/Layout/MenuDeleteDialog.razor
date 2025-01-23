@@ -1,0 +1,62 @@
+@inject ISnackbar Snackbar
+@inject IMenusService MenusService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.DeleteForever" />
+            <span>Apagar Menu?</span>
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText>@ContentText</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="@Color" Variant="Variant.Filled" OnClick="Submit">@ButtonText</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = default!;
+
+    [CascadingParameter]
+    MainLayout MainLayout { get; set; } = default!;
+
+    [Parameter]
+    public string ContentText { get; set; } = default!;
+
+    [Parameter]
+    public string ButtonText { get; set; } = default!;
+
+    [Parameter]
+    public Color Color { get; set; } = default!;
+
+    [Parameter]
+    public Guid MenuId { get; set; } = Guid.Empty;
+
+    async Task Submit()
+    {
+        try
+        {
+            var result = await MenusService.Delete(MenuId);
+
+            if (!result.IsSuccessStatusCode) {
+                var problemDetails = await result.Content.ReadFromJsonAsync<ProblemDetails>();
+                
+                throw new Exception(problemDetails?.Detail ?? Message.General.GENERIC_RESPONSE_ERROR);
+            }
+
+            Snackbar.Add(Message.General.DELETE.FormaterString("Menu"), Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+            await MainLayout.Update();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+            MudDialog.Close(DialogResult.Ok(false));
+        }
+    }
+    void Cancel() => MudDialog.Cancel();
+}

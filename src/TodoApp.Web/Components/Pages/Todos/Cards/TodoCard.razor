@@ -1,0 +1,122 @@
+@inject ITodoService TodoService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject IDateTimeProvider DateTimeProvider
+
+<MudCard Elevation="3">
+    <MudCardContent>
+        <MudStack Row="true" Justify="Justify.FlexStart" Class="gap-1" AlignItems="AlignItems.Center">
+            <MudTooltip Text="@($"{(TodoResponse.Finished ? "Desmarcar." : "Marcar como concluído.")}")">
+                <MudCheckBox 
+                    T="bool" 
+                    Value="@TodoResponse.Finished" 
+                    ValueChanged="FinishedEvent" 
+                    Color="Color.Default"
+                    Size="Size.Medium" />
+            </MudTooltip>
+            
+            <MudText Typo="Typo.h5" Class="text-break">
+                @TodoResponse.Description
+            </MudText>
+        </MudStack>
+    </MudCardContent>
+    <MudCardActions>
+        <MudStack Justify="Justify.SpaceBetween" Row="true" class="w-100">
+            <MudStack class="ml-5" Row="true">
+                <MudTooltip Text="@(IsExpiredTodo() ? "Tarefa Expirada" : string.Empty)">
+                    <MudText Typo="Typo.caption" Color="MarkAsExpired()">
+                        <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Inherit" />
+                        <span>@TodoResponse.DateStart.FormatDate(TodoResponse.DateEnd, DateTimeProvider)</span>
+                    </MudText>
+                </MudTooltip>
+
+                @if (TodoResponse.TimeRemember is not null)
+                {
+                    <MudText Typo="Typo.caption" Color="MarkAsExpired()">
+                        <MudIcon Icon="@Icons.Material.Filled.WatchLater" Color="Color.Inherit" />
+                        <span>@TodoResponse.TimeRemember</span>
+                    </MudText>
+                }
+            </MudStack>
+            <MudItem>
+                <MudTooltip Text="Ir para a dashboard de tarefas.">
+                    <MudIconButton Icon="@Icons.Material.Filled.ViewKanban" Variant="Variant.Filled" Color="@Color.Secondary"
+                        Size="Size.Small" OnClick="ForwardKanban" />
+                </MudTooltip>
+
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Filled" Color="Color.Primary"
+                        Size="Size.Small" OnClick="CallEditAction" />
+                </MudTooltip>
+            </MudItem>
+        </MudStack>
+    </MudCardActions>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public required TodoResponse TodoResponse { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> EditCallback { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback StateChangedEvent { get; set; } = default;
+
+    [Parameter, EditorRequired]
+    public required TodoQueryParameter? QueryParameter { get; set; } = default!;
+
+    [Parameter]
+    public bool ShowSeverityExpired { get; set; } = true;
+
+    #region EVENT
+    public async Task FinishedEvent()
+    {
+        try
+        {
+            TodoResponse.Finished = !TodoResponse.Finished;
+            var result = await TodoService.MarkPendentOrFinish(TodoResponse.Id);
+
+            if (!result.IsSuccessStatusCode)
+            {
+                var problemDetails = await result.Content.ReadFromJsonAsync<ProblemDetails>();
+
+                throw new Exception(problemDetails?.Detail ?? Common.Messages.Message.Todo.FINISH_ERROR);
+            }
+
+            await StateChangedEvent.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+    #endregion
+
+    #region EVENT
+    public async Task CallEditAction()
+    {
+        if (EditCallback.HasDelegate)
+        {
+            await EditCallback.InvokeAsync(TodoResponse.Id);
+        }
+    }
+
+    public void ForwardKanban()
+    {
+        NavigationManager.NavigateTo($"./{TodoResponse.MenuId}/todos/{TodoResponse.Id}/kanban?pageNumber={QueryParameter?.PageNumber ?? 1}");
+    }
+    #endregion
+
+    #region VALIDATIONS
+    public bool IsExpiredTodo() =>
+        TodoResponse.DateStart.ExpiredTodo(TodoResponse.DateEnd, DateTimeProvider);
+
+    private Color MarkAsExpired() =>
+        !TodoResponse.Finished && IsExpiredTodo() ? Color.Error : Color.Tertiary;
+    #endregion
+}

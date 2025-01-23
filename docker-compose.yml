@@ -1,0 +1,42 @@
+version: '1.0'
+
+networks:
+  todoApp-net:
+    driver: bridge
+
+volumes:
+  app_database: {}
+
+services:
+  api:
+    container_name: todoApp
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      - ASPNETCORE_ENVORONMET=Production
+      - ConnectionStrings__PostgreSQL=User ID=postgres;Password=postgres;Host=api_database;Port=5432;Database=TodoApp
+    restart: on-failure
+    networks:
+      - todoApp-net
+    depends_on:
+      - "api_database"
+
+  api_database:
+    image: postgres:latest
+    container_name: api_database
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DATABASE=TodoApp
+      - PGPORT=5432
+    ports:
+      - "5500:5432"
+    expose:
+      - "5500"
+    networks:
+      - todoApp-net
+    volumes:
+      - "app_database:/var/lib/postgresql/data"

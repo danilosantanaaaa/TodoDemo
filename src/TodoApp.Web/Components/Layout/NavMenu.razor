@@ -1,0 +1,127 @@
+@inject IDialogService DialogService
+@inject IMenusService MenusService
+@inject NavigationManager NavigationManager
+@inject HttpClient Client
+@implements IAsyncDisposable
+
+<MudStack class="w-100 py-1" Spacing="0" Justify="Justify.SpaceBetween" style="min-height: 100%;">
+    <MudNavMenu class="w-100" style="overflow-y: scroll;">
+        <MudNavLink Icon="@Icons.Material.Filled.Dashboard" OnClick="() => Navigator()" Match="NavLinkMatch.Prefix">
+            Dashboard
+        </MudNavLink>
+    
+        @if(Menus is null) {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
+        } 
+        else if (Menus.Count is 0) {
+            <MudText Typo="Typo.body2" class="p-2">Nenhum menu criado...</MudText>
+        }
+        else {
+            <MudDivider />
+
+            @foreach (var menu in Menus!)
+            {
+                <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="0">
+                    <MudNavLink OnClick="() => Navigator(menu.Id)" Icon="@menu.Icon.GetIcon()" Match="NavLinkMatch.Prefix" class="d-flex justify-content-end align-items-center">
+                        <MudBadge Content="GetCount(menu)" Color="Color.Info"  Visible="IsBadge(menu)" Origin="Origin.CenterRight">
+                            <span class="me-2 p-2">@menu.Name</span>
+                        </MudBadge>
+                    </MudNavLink>
+
+                    <MudTooltip Text="Opções" Class="pt-2 pb-2">
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" TransformOrigin="Origin.BottomLeft">
+                            <MudMenuItem OnClick="() => UpdateMenu(menu.Id)" Icon="@Icons.Material.Filled.Edit">
+                                    Editar
+                            </MudMenuItem>
+
+                            <MudMenuItem OnClick="() => DeleteMenu(menu.Id)" Icon="@Icons.Material.Filled.DeleteForever">
+                                    Apagar
+                            </MudMenuItem>
+                        </MudMenu>
+                    </MudTooltip>
+                </MudStack>
+            }
+        }
+    </MudNavMenu>
+
+    <MudPaper Elevation="0" class="position-sticky bottom-0 p-3" Square="true">
+        <MudStack Justify="Justify.FlexEnd" Row="true" class="w-100">
+            <MudTooltip Text="Adicionar novo menu">
+                <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddMenu" />
+            </MudTooltip>
+        </MudStack>
+    </MudPaper>
+</MudStack>
+
+@code {
+    public required List<MenuResponse>? Menus { get; set; }
+
+    private HubConnection? _hubConnection;
+    private Dictionary<Guid, int>? _todosPendentDict = default!;
+
+    protected override async Task OnInitializedAsync() {
+        await UpdateUI();
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl($"{Client.BaseAddress}hubs/todos/pendentsTotal")
+            .Build();
+
+        _hubConnection.On<Dictionary<Guid, int>>("ReceiveTodoPendentTotal", todosPendent =>
+        {
+            _todosPendentDict = todosPendent;
+
+            InvokeAsync(StateHasChanged);
+        });
+
+        await _hubConnection.StartAsync();
+    }
+
+    public void UpdateMenu(Guid menuId) {
+        NavigationManager.NavigateTo($"/menus/edittion/{menuId}", true);
+    }
+
+    public void Navigator(Guid? menuId = null) {
+        NavigationManager.NavigateTo(menuId is null ? "/" : $"{menuId}/todos", true);
+    }
+
+    private void AddMenu() {
+        NavigationManager.NavigateTo($"/menus/addition", true);
+    }
+
+    private void DeleteMenu(Guid menuId)
+    {
+        var parameters = new DialogParameters<MenuDeleteDialog>();
+        parameters.Add(x => x.ContentText, "Você tem certeza que deseja apagar esse registro? Após apagar, não será possível desfazer.");
+        parameters.Add(x => x.ButtonText, "Apagar");
+        parameters.Add(x => x.Color, Color.Error);
+        parameters.Add(x => x.MenuId, menuId);
+
+        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall};
+
+        DialogService.Show<MenuDeleteDialog>("Remover Menu", parameters, options);
+
+    }
+
+    private async Task GetMenus()
+    {
+        Menus = await MenusService.GetAll<MenuResponse>();
+        StateHasChanged();
+    }
+
+    public async Task UpdateUI() {
+        await GetMenus();
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync() {
+        await _hubConnection!.DisposeAsync();
+    }
+
+    #region VALIDATIONS
+    private bool IsBadge(MenuResponse menu) =>
+        _todosPendentDict?.ContainsKey(menu.Id) ?? false;
+
+    private int GetCount(MenuResponse menu) =>
+        _todosPendentDict?.GetValueOrDefault(menu.Id) ?? 0;
+    #endregion
+}

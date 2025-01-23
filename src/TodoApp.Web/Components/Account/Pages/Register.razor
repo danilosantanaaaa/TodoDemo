@@ -1,0 +1,128 @@
+@page "/Account/Register"
+
+@rendermode InteractiveServer
+
+@inject UserManager<ApplicationIdentityUser> UserManager
+@inject IUserStore<ApplicationIdentityUser> UserStore
+@inject SignInManager<ApplicationIdentityUser> SignInManager
+@inject ILogger<Register> Logger
+@inject IdentityRedirectManager RedirectManager
+@inject NavigationManager NavigationManager
+
+<title>Criar uma Conta</title>
+
+<h2>Criar uma Conta</h2>
+
+@if(!string.IsNullOrEmpty(Message)){
+    <p class="text-danger">@Message</p>
+}
+
+<EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
+    <DataAnnotationsValidator />
+
+    <!-- Email input -->
+    <div data-mdb-input-init class="form-outline mb-4">
+        <InputText type="email" id="email" class="form-control" @bind-Value="Input.Email"/>
+        <label class="form-label" for="email">E-mail</label>
+        <ValidationMessage For="() => Input.Email" />
+    </div>
+
+    <!-- Password input -->
+    <div data-mdb-input-init class="form-outline mb-4">
+        <InputText type="password" id="password" class="form-control" @bind-Value="Input.Password"/>
+        <label class="form-label" for="password">Senha</label>
+        <ValidationMessage For="() => Input.Password" />
+    </div>
+
+    <!-- Confirmation Password input -->
+    <div data-mdb-input-init class="form-outline mb-4">
+        <InputText type="password" id="confirm-password" class="form-control" @bind-Value="Input.ConfirmPassword"/>
+        <label class="form-label" for="confirm-password">Confirmar Senha</label>
+        <ValidationMessage For="() => Input.ConfirmPassword" />
+    </div>
+    
+     <button  type="submit" data-mdb-button-init data-mdb-ripple-init class="btn btn-primary btn-block mb-4">Criar Conta</button>
+
+  <!-- login buttons -->
+  <div>
+    <p>Já tem uma conta? <a href="@($"./Account/Login?ReturnUrl={ReturnUrl}")">Entrar.</a></p>
+  </div>
+</EditForm>
+
+@code {
+    private IEnumerable<IdentityError>? identityErrors;
+        
+    [CascadingParameter]
+    public HttpContext HttpContext {get; set;} = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input {get; set;} = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl {get; set;}
+
+    private string? Message => identityErrors is null ? null : $"Error: {string.Join(",", identityErrors.Select(error => error.Description))}";
+
+     protected override async Task OnInitializedAsync()
+    {
+        if (HttpContext is not null && HttpMethods.IsGet(HttpContext.Request.Method ?? ""))
+        {
+            // Clear the existing external cookie to ensure a clean login process
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        }
+    }
+
+    public async Task RegisterUser() 
+    {
+        var user = new ApplicationIdentityUser();
+
+        await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
+
+        var emailStore = GetEmailStore();
+        await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+
+        var resultManager = await UserManager.CreateAsync(user, Input.Password);
+
+        if(!resultManager.Succeeded) {
+            identityErrors = resultManager.Errors;
+            return;
+        }
+
+        //TODO: por enquanto está redirecionando para a tela de login, devido
+        // comportamento inesperado que será investigado o motivo.
+        // O UserManager diz que está salvo no banco de dados sem de fato realizar mas quando olha no banco não está no banco o "User".
+        // Esse fenônimo só ocorre quando o blazor está no modo Serve-Side Render: StreamRender ou null.
+        Logger.LogInformation("User created a new account with password.");
+        //await SignInManager.SignInAsync(user, isPersistent: false);
+        //RedirectManager.RedirectTo($"./Account/Login?ReturnUrl={ReturnUrl}");
+        NavigationManager.NavigateTo($"./Account/Login?ReturnUrl={ReturnUrl}", forceLoad: true);
+    }
+
+    private IUserEmailStore<ApplicationIdentityUser> GetEmailStore()
+    {
+        if (!UserManager.SupportsUserEmail)
+        {
+            throw new NotSupportedException("The default UI requires a user store with email support.");
+        }
+        return (IUserEmailStore<ApplicationIdentityUser>)UserStore;
+    }
+
+     private sealed class InputModel
+    {
+        [Required]
+        [EmailAddress]
+        [Display(Name = "E-mail")]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [StringLength(100, ErrorMessage = "A {0} deve ter pelo menos {2} e no máximo {1} caracteres.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        [Display(Name = "Senha")]
+        public string Password { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirmar Senha")]
+        [Compare(nameof(Password), ErrorMessage = "A Senha e Confirmar Senha não são iguais.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

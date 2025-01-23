@@ -1,0 +1,12 @@
+﻿<MudStack Justify="Justify.FlexEnd" AlignItems="AlignItems.End" Spacing="0">
+    <MudText Typo="Typo.caption"><strong>Criado em: </strong>@CreatedOn.ToLocalTime()</MudText>
+    <MudText Typo="Typo.caption"><strong>Atualizado em: </strong>@UpdatedOn.ToLocalTime()</MudText>
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired]
+    public required DateTime CreatedOn { get; set; }
+
+    [Parameter, EditorRequired]
+    public required DateTime UpdatedOn { get; set; }
+}

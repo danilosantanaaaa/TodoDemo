@@ -1,0 +1,41 @@
+@using System.Net.Http
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+
+@using System.Diagnostics
+@using TodoApp.Web
+@using TodoApp.Web.Services.Interfaces
+@using TodoApp.Web.Components
+
+@* HELPERS *@
+@using TodoApp.Web.Common
+
+
+@* HTTP CLIENT *@
+@using Microsoft.AspNetCore.Mvc
+
+@*SERVICES APPLICATIONS LAYERS *@
+@using TodoApp.Application.Common.Interfaces
+
+@* MUDBLAZOR Components *@
+@using MudBlazor
+@using MudBlazor.Services
+
+@* DTOS *@
+@using TodoApp.Application.Dtos.Todos
+@using TodoApp.Application.Dtos.Menus
+
+@* COMMON *@
+@using TodoApp.Web.Components.Common.Messages
+@using TodoApp.Web.Components.Common.Menus
+@using TodoApp.Web.Components.Common
+
+@using TodoApp.Web.Components.Account
