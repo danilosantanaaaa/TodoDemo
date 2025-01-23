@@ -12,3 +12,7 @@ Projeto criado com objetivo de treinar os conceitos.
 - DDD
 - CQRS
 - Testes de Unidades
+
+
+> [!WARNING]  
+> Esse projeto é só uma demontração
